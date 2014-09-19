@@ -1,0 +1,215 @@
+#include "SonarEye.h"
+
+SonarEye::SonarEye(ros::NodeHandle nh, ros::NodeHandle nh_private):
+  nh_(nh), 
+  nh_private_(nh_private)
+{
+
+  ros::NodeHandle node  (nh_,"sonarEye");
+  sonar_sub = node.subscribe("/sonar",1,&SonarEye::sonarCallback,this);  
+  ROS_INFO("Sonar sub initiated");
+  //initiate variables
+  initiation();
+  ROS_INFO("Sonar initiated");
+}
+
+void SonarEye::sonarCallback(const std_msgs::Float32 msg)
+{
+  sonarPoint.z = msg.data*10;
+  sonarPoint.x = 0;
+  sonarPoint.y = 0;
+  ROS_DEBUG("Height: [%.3f]", msg.data);
+  ROS_DEBUG("%.3f %.3f %.3f",sonarPoint.x,sonarPoint.y,sonarPoint.z);
+}
+
+SonarEye::~SonarEye()
+{
+  ROS_INFO("Destroying SonarEye "); 
+}
+
+void SonarEye::initiation()
+{
+  initPosition();
+  initParameters();
+  //flightOrigin();
+  initPointcloud();
+
+}
+
+void SonarEye::initParameters()
+{
+  if (!nh_private_.getParam("flight_radius", flight_radius))
+    flight_radius = 300;
+  if (!nh_private_.getParam("freq",freq))
+    freq = 30;
+  if (!nh_private_.getParam("averageStep",averageStep))
+    averageStep = 10;
+  if (!nh_private_.getParam("flight_height", flightHeight))
+    flightHeight = 200;
+
+  ROS_INFO("Radius initialized %.3f",flight_radius);
+  ROS_INFO("Frequency initialized %.3f",freq);
+  ROS_INFO("moving average %d",averageStep);
+
+  zeroVector.x = 0;
+  zeroVector.y = 0;
+  zeroVector.z = 0;
+}
+
+void SonarEye::initPosition()
+{
+  currentPoint = zeroVector;
+  prePoint = zeroVector;
+  originPoint = zeroVector;
+  currentVel = zeroVector;
+  intError = zeroVector;
+  shiftedOrigin = zeroVector;
+  //shiftedOrigin.y = 800;
+}
+
+bool SonarEye::flightOrigin()
+{
+  //finding start point of flight
+  pcl::PointXYZ originAngle;
+
+  if (sonarPoint.z<230)
+    return false;
+
+  originPoint = sonarPoint;
+
+  pointLog.push_back(zeroVector);
+  velLog.push_back(zeroVector);
+  accLog.push_back(zeroVector);
+  angleLog.push_back(zeroVector);
+  ROS_INFO("origin at %.3f %.3f %.3f",originPoint.x,originPoint.y,originPoint.z);
+
+  
+  return true;
+}
+
+void SonarEye::initPointcloud()
+{
+  cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
+  cloud_vel.reset(new pcl::PointCloud<pcl::PointXYZ>);
+  cloud_acc.reset(new pcl::PointCloud<pcl::PointXYZ>);
+
+  cloud->width = 1000;
+  cloud->height = 1;
+  cloud->points.resize (cloud->width * cloud->height);
+
+  cloud_vel->width = 1000;
+  cloud_vel->height = 1;
+  cloud_vel->points.resize (cloud->width * cloud->height);
+
+  cloud_acc->width = 1000;
+  cloud_acc->height = 1;
+  cloud_acc->points.resize (cloud->width * cloud->height);
+
+  for (size_t i = 0; i < cloud->points.size (); ++i)
+  {
+    cloud->points[i].x = flight_radius*cos(i*3.14/180.0)+shiftedOrigin.x;
+    cloud->points[i].y = flight_radius*sin(i*3.14/180.0)+shiftedOrigin.y;
+    cloud->points[i].z = originPoint.z+flightHeight;
+    cloud_vel->points[i].x = -flight_radius*sin(i*3.14/180.0);
+    cloud_vel->points[i].y = flight_radius*cos(i*3.14/180.0);
+    cloud_vel->points[i].z = 0;
+    cloud_acc->points[i].x = -flight_radius*cos(i*3.14/180.0);
+    cloud_acc->points[i].y = -flight_radius*sin(i*3.14/180.0);
+    cloud_acc->points[i].z = 0;
+  }
+
+  kdtree.setInputCloud(cloud);
+}
+
+void SonarEye::updateFlightStatus()
+{
+  float tempz = originPoint.z - sonarPoint.z;
+  float deltaz = tempz - currentPoint.z;
+  if ((deltaz >-200) && (deltaz< 200))
+    {
+      currentPoint = sonarPoint;
+      currentPoint.z = tempz;
+    }
+  ROS_DEBUG("%.3f %.3f %.3f",sonarPoint.x,sonarPoint.y,sonarPoint.z);  
+  ROS_DEBUG("%.3f %.3f %.3f",currentPoint.x,currentPoint.y,currentPoint.z);  
+  flightLog();
+  
+  currentVel = differentiate(pointLog);
+  velLog.push_back(currentVel);
+  currentAcc = differentiate(velLog);
+  accLog.push_back(currentAcc);
+}
+
+pcl::PointXYZ SonarEye::differentiate(const std::vector<pcl::PointXYZ>& x)
+{
+  pcl::PointXYZ dx;
+
+  if (x.size()>(unsigned)(1+averageStep))
+    {
+      dx = scalarProduct(freq/averageStep, vectorMinus(x.back(),x[x.size()-1-averageStep]));
+    }
+  else
+    {
+      dx = scalarProduct(freq/x.size(),vectorMinus(x.back(),x.front()));
+    }
+  
+  return dx;
+}
+
+bool SonarEye::checkZeroVector(pcl::PointXYZ x)
+{
+  if (x.x == 0 && x.y == 0 && x.z==0)
+    return true;
+  else
+    return false;
+}
+
+void SonarEye::updateIntError(pcl::PointXYZ targetPoint)
+{
+  intError = vectorPlus(intError, vectorMinus(currentPoint,targetPoint) );
+}
+
+void SonarEye::resetIntError()
+{
+  intError = zeroVector;
+}
+
+void SonarEye::flightLog()
+{
+  pointLog.push_back(currentPoint);
+  angleLog.push_back(zeroVector);
+}
+
+void SonarEye::calculatePositionVelocityError()
+{
+  std::vector<int> pointIdxNKNSearch(1);
+  std::vector<float> pointNKNSquaredDistance(1);
+
+  if (kdtree.nearestKSearch(currentPoint,1,pointIdxNKNSearch,pointNKNSquaredDistance)>0)
+    {
+      for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i)
+	{
+	  pcl::PointXYZ pathPoint,pathPoint_vel,pathPoint_acc,pathTangent,pathNormal,pathBinormal;
+	  pathPoint = cloud->points[ pointIdxNKNSearch[i] ];
+	  pathPoint_vel = cloud_vel->points[ pointIdxNKNSearch[i] ];
+	  pathPoint_acc = cloud_acc->points[ pointIdxNKNSearch[i] ];
+
+	  pathTangent = normalize(pathPoint_vel);
+	  //pathNormal = normalize(pathPoint_acc);
+	  //pathBinormal = crossProduct(pathTangent,pathNormal);
+
+	  e_p = vectorMinus(currentPoint,pathPoint);
+	  e_p = vectorMinus(e_p,scalarProduct( dotProduct(e_p,pathTangent),pathTangent) );
+	  ROS_DEBUG("current point: %.3f,%.3f,%.3f",currentPoint.x,currentPoint.y,currentPoint.z);
+	  ROS_DEBUG("path point: %.3f,%.3f,%.3f",pathPoint.x,pathPoint.y,pathPoint.z);
+
+	  e_v = vectorMinus(currentVel,pathPoint_vel);
+
+	  acc_t = pathPoint_acc;
+	  ROS_DEBUG("error in position: %.3f,%.3f,%.3f",e_p.x,e_p.y,e_p.z);
+	}
+      
+    }
+}
+
+

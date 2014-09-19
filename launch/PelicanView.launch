@@ -1,0 +1,29 @@
+<launch>
+
+  #### Hummingbird ###################################
+
+  <node pkg="quadrotorTestControl" type="quadView" name="Pelican" 
+    output = "screen">
+    <param name="vicon" type="string" value="/vicon/Pelican/Pelican"/>
+
+    <param name="freq" type="double" value="30.0"/>
+
+    <param name="gravity_constant" type="double" value="9.81"/>
+
+    <param name="heli_mass" type="double" value="615.0"/>
+
+    <param name="flight_radius" type="double" value="300.0"/>
+
+    <param name="fly" type="bool" value="true"/>
+    
+    <param name="flight_height" type="double" value="300.0"/>
+ 
+    <param name="max_outter_radius" type="double" value="1200.0"/>
+
+  </node>
+
+
+</launch>
+
+
+

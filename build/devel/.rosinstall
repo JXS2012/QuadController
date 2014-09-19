@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/cooplab/jianxin/rosbuild_ws/sandbox/quadrotorTestControl/build/devel/setup.sh

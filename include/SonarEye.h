@@ -1,0 +1,141 @@
+#include <ros/ros.h>
+//#include <LinearMath/btMatrix3x3.h>
+#include <std_msgs/Float32.h>
+#include <pcl/point_cloud.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include "VectorComputation.h"
+
+#include "math.h"
+#include <sstream>
+#include <vector>
+#include <stdio.h>
+
+class SonarEye
+{
+ private:
+  //ros related
+  ros::NodeHandle nh_;
+  ros::NodeHandle nh_private_;
+
+  ros::Subscriber sonar_sub;
+  //constants;
+  double flight_radius,freq,flightHeight;
+  pcl::PointXYZ shiftedOrigin,zeroVector;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,cloud_vel,cloud_acc;
+  pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
+  int averageStep;
+
+  //variables;
+  pcl::PointXYZ currentPoint,prePoint,originPoint,sonarPoint;
+  pcl::PointXYZ e_p,e_v,acc_t,currentVel,currentAcc,intError;
+  std::vector<pcl::PointXYZ> pointLog,velLog,accLog,angleLog;
+
+  //functions
+  //initiation
+  void initiation();
+  void initPosition(); //init x,y,z,x_pre,.. 
+  void initParameters();
+  void initPointcloud(); //initiate path
+  void sonarCallback(const std_msgs::Float32 msg);
+
+  //flight log record
+  void flightLog();
+
+  pcl::PointXYZ differentiate(const std::vector<pcl::PointXYZ>&);
+  bool checkZeroVector(pcl::PointXYZ);
+
+ public:
+  SonarEye(ros::NodeHandle nh, ros::NodeHandle nh_private);
+  virtual ~SonarEye();
+
+  //in flight data updating
+  bool flightOrigin();
+  void updateFlightStatus(); //update current position,velocity,etc
+  void updateIntError(pcl::PointXYZ); //update integrated error for hover
+  void resetIntError(); //reset integrated error to zero
+  void calculatePositionVelocityError(); //used for path control
+
+  //getters
+  inline pcl::PointXYZ getShiftedOrigin()
+  {
+    return shiftedOrigin;
+  }
+
+  inline pcl::PointXYZ getStartPoint()
+  {
+    return cloud->points[0];
+  }
+
+  inline pcl::PointXYZ getCurrentPoint()
+  {
+    return currentPoint;
+  }
+ 
+  inline pcl::PointXYZ getOriginPoint()
+  {
+    return originPoint;
+  }
+
+  inline pcl::PointXYZ getE_p()
+  {
+    return e_p;
+  }
+ 
+  inline pcl::PointXYZ getE_v()
+  {
+    return e_v;
+  }
+ 
+  inline pcl::PointXYZ getAcc_t()
+  {
+    return acc_t;
+  }
+ 
+  inline pcl::PointXYZ getCurrentVel()
+  {
+    return currentVel;
+  }
+
+  inline pcl::PointXYZ getCurrentAcc()
+  {
+    return currentAcc;
+  }
+
+  inline pcl::PointXYZ getIntError()
+  {
+    return intError;
+  }
+
+  inline pcl::PointXYZ getLogPos(int i)
+  {
+    return pointLog[i];
+  }
+
+  inline pcl::PointXYZ getLogAngle(int i)
+  {
+    return angleLog[i];
+  }
+
+  inline pcl::PointXYZ getLogVel(int i)
+  {
+    return velLog[i];
+  }
+
+  inline pcl::PointXYZ getLogAcc(int i)
+  {
+    return accLog[i];
+  }
+
+  inline double getPsi()
+  {
+    return 0;
+  }
+
+  inline int getLogSize()
+  {
+    return pointLog.size();
+  }
+
+};
+
+

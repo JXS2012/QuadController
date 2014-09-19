@@ -1,0 +1,145 @@
+#include <ros/ros.h>
+#include <tf/transform_listener.h>
+#include <tf/tf.h>
+#include "math.h"
+#include <sstream>
+#include <vector>
+#include <stdio.h>
+#include <sensor_msgs/Imu.h>
+#include <time.h>
+
+double x_origin, y_origin, z_origin,previousTime;
+std::vector<double> imu_x,imu_y,imu_z,imu_vel_x,imu_vel_y,imu_vel_z,x,y,z,phi,psi,theta;
+
+float freq = 30.0;
+
+tf::TransformListener *listener;
+tf::StampedTransform *transform;
+
+void  write_log();
+
+void timerCallback(const ros::TimerEvent&)
+{
+  double roll,pitch,yaw;
+  
+  try{
+    listener->lookupTransform("/world", "/vicon/Hummingbird/Hummingbird",  
+			     ros::Time(0), *transform);
+  }
+  catch (tf::TransformException ex){
+    ROS_ERROR("%s",ex.what());
+  }
+
+  tf::Matrix3x3(transform->getRotation()).getEulerYPR(yaw,pitch,roll);
+  //printf("ZYX roll %.3f pitch %.3f yaw %.3f\n",roll,pitch,yaw);
+  
+  phi.push_back(asin(sin(roll)*cos(pitch)));
+  double psi_1 = cos(yaw)*sin(roll)*sin(pitch)-cos(roll)*sin(yaw);
+  double psi_2 = cos(roll)*cos(yaw)+sin(roll)*sin(pitch)*sin(yaw);
+  psi.push_back(atan2(-psi_1,psi_2));
+  theta.push_back(atan2(tan(pitch),cos(roll)));  
+  ROS_INFO("PHI %f Theta %f Psi %f",phi.back(),theta.back(),psi.back());
+  x.push_back(transform->getOrigin().x()*1000);
+  y.push_back(transform->getOrigin().y()*1000);
+  z.push_back(transform->getOrigin().z()*1000);
+}
+
+void imuCallback(const sensor_msgs::Imu& imuMsg)
+{
+  float imu_wx,imu_wy,imu_wz,imu_acc_x,imu_acc_y,imu_acc_z;
+  timeval current;
+  double currTime,timeInterval;
+
+  gettimeofday(&current,NULL);
+  currTime = current.tv_sec + current.tv_usec/1000000;
+  timeInterval = currTime - previousTime;
+
+  imu_wx = imuMsg.angular_velocity.x;
+  imu_wy = imuMsg.angular_velocity.y;
+  imu_wz = imuMsg.angular_velocity.z;
+
+  imu_acc_x = imuMsg.linear_acceleration.x;
+  imu_acc_y = imuMsg.linear_acceleration.y;
+  imu_acc_z = imuMsg.linear_acceleration.z-9.6;
+  
+  imu_vel_x.push_back(imu_vel_x.back()+imu_acc_x*timeInterval);
+  imu_vel_y.push_back(imu_vel_y.back()+imu_acc_y*timeInterval);
+  imu_vel_z.push_back(imu_vel_z.back()+imu_acc_z*timeInterval);
+
+  imu_x.push_back(imu_x.back()+imu_vel_x.back()*timeInterval);
+  imu_y.push_back(imu_y.back()+imu_vel_y.back()*timeInterval);
+  imu_z.push_back(imu_z.back()+imu_vel_z.back()*timeInterval);
+
+  ROS_DEBUG("current angular velocity %.3f, %.3f, %.3f, current linear acc %.3f, %.3f %.3f\n",imu_wx,imu_wy,imu_wz,imu_acc_x,imu_acc_y,imu_acc_z);
+  previousTime = currTime;
+}
+
+int main(int argc, char** argv){
+  ros::init(argc, argv, "angleTransform");
+
+  ros::NodeHandle node;
+  listener = new(tf::TransformListener);
+  transform = new(tf::StampedTransform);
+  //ros::Subscriber sub = node.subscribe("/mav/imu", 10, imuCallback);
+
+  while (true)
+    {
+      try{
+	listener->lookupTransform("/world", "/vicon/Hummingbird/Hummingbird",  
+				 ros::Time(0), *transform);
+      }
+      catch (tf::TransformException ex){
+	ROS_ERROR("%s",ex.what());
+	usleep(100);
+	continue;
+      }
+      x_origin = transform->getOrigin().x()*1000;
+      y_origin = transform->getOrigin().y()*1000;
+      z_origin = transform->getOrigin().z()*1000;
+      break;
+    }
+
+  ROS_INFO("origin at %.3f %.3f %.3f\n",x_origin,y_origin,z_origin);
+  imu_x.push_back(x_origin);
+  imu_y.push_back(y_origin);
+  imu_z.push_back(z_origin);
+  imu_vel_x.push_back(0);
+  imu_vel_y.push_back(0);
+  imu_vel_z.push_back(0);
+
+  ros::Timer timer = node.createTimer(ros::Duration(1.0/freq),timerCallback);
+  int counter=0;
+  //timeval previous;
+  //gettimeofday(&previous,NULL);
+  //previousTime = previous.tv_sec + previous.tv_usec/1000000;
+
+  while (node.ok())
+    {
+      counter++;
+      ros::spinOnce();
+    }
+
+  //write_log();
+  return 0;
+};
+
+unsigned int min(unsigned x, unsigned y)
+{
+  if (x<y)
+    return x;
+  return y;
+}
+
+void write_log()
+{
+  std::FILE * pFile;
+
+  pFile = fopen("/home/cooplab/vicon_imu.txt","w");
+  if (pFile!=NULL)
+    {
+      for (int i = 0; (unsigned)i<min(x.size(),imu_x.size());i++)
+	fprintf(pFile, "x %.3f y %.3f z %.3f imu_x %.3f imu_y %.3f imu_z %.3f\n", x[i], y[i], z[i], imu_x[i], imu_y[i], imu_z[i]);
+    }
+  
+}
+

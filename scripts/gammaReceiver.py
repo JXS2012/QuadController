@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+import rospy
+from std_msgs.msg import Float32
+import serial
+
+timetableQuad=[]
+timetableTurtle=[]
+
+def callbackQuad(data):
+    current_time = rospy.get_time()
+    timetableQuad.append(current_time)
+    rospy.loginfo('Quad: gamma ray received at {0}'.format(current_time))
+
+def callbackTurtle(data):
+    current_time = rospy.get_time()
+    timetableTurtle.append(current_time)
+    rospy.loginfo('Turtle: gamma ray received at {0}'.format(current_time))
+
+def writeLog(timetable,robotName, initial_time):
+    counttable = [t - initial_time for t in timetable]
+    count = [0]*(int(counttable[-1]/60)+1)
+    for digit in counttable:
+       count[int(digit/60)]+=1
+  
+    filename = '{0}{1}timetable.txt'.format(initial_time, robotName)
+    f=open(filename,'w')
+    for digit in timetable:
+        f.write(str(digit)+'\n')
+    f.close()
+  
+    filename = '{0}{1}counts.txt'.format(initial_time, robotName)
+    f=open(filename,'w')
+    for digit in count:
+        f.write(str(digit)+'\n')
+    f.close()
+
+if __name__ == '__main__':
+    try:
+        rospy.init_node('gammaReceiver')
+        pub_quad = rospy.Subscriber('gamma',Float32,callbackQuad)
+        pub_turtle = rospy.Subscriber('gammaTurtle', Float32, callbackTurtle)
+    except rospy.ROSInterruptException:
+        pass
+
+    initial_time = rospy.get_time()
+    print initial_time
+	 
+    rospy.spin();
+
+    writeLog(timetableQuad, 'Quad', initial_time)
+    writeLog(timetableTurtle, 'Turtle', initial_time)
+  
+    print("Closing...")

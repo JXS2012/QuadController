@@ -1,0 +1,39 @@
+<launch>
+
+  #### Hummingbird ###################################
+
+  <node pkg="quadrotorTestControl" type="quadSmart" name="Pelican" 
+    output = "screen">
+    <param name="vicon" type="string" value="/vicon/Pelican/Pelican"/>
+
+    <param name="freq" type="double" value="30.0"/>
+
+    <param name="gravity_constant" type="double" value="9.81"/>
+
+    <param name="heli_mass" type="double" value="1015.0"/>
+
+    <param name="flight_radius" type="double" value="400.0"/>
+
+    <param name="fly" type="bool" value="true"/>
+
+    <param name="total_time" type="double" value="20.0"/>
+    
+    <param name="flight_height" type="double" value="200.0"/>
+ 
+    <param name="max_outter_radius" type="double" value="1200.0"/>
+
+    <param name="targets" type="string" value="0 200 400"/>
+
+    <param name="quadrotor_type" type="string" value="Pelican"/>
+
+    <param name="ROS_thrust_cmd_table" value="0 0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4"/>
+
+    <param name="actual_thrust_table" value="66 126 217 300 466 628 803 1019 1258"/>
+
+  </node>
+
+
+</launch>
+
+
+

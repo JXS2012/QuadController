@@ -1,0 +1,117 @@
+#!/usr/bin/env python
+
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+from mpl_toolkits.mplot3d import Axes3D
+import math
+
+def data_process(i):
+    filename = './realFlight/0{0}.txt'.format(i)
+    f = open(filename,'r')
+    text = f.readlines()
+    f.close()
+    x = []
+    y = []
+    z = []
+    r = []
+    p = []
+    yaw = []
+    roll = []
+    pitch = []
+    thrust = []
+    for line in text:
+        if line != '':
+            x.append( float( line.split()[1] ) )
+            y.append( float( line.split()[3] ) )
+            z.append( float( line.split()[5] ) )
+            r.append( float( line.split()[7] ) )
+            p.append( float( line.split()[9] ) )
+            yaw.append( float( line.split()[11] ) )
+            roll.append( float( line.split()[13] ) )
+            pitch.append( float( line.split()[15] ) )
+            thrust.append( float( line.split()[17] ) )
+    return (x,y,z,r,p,yaw,roll,pitch,thrust)
+#plt.plot(range(len(y)),x,range(len(vel_y)),[i for i in vel_x],range(len(roll)),[i*100 for i in roll])
+#plt.legend(['x','x_vel','roll'])
+#plt.show()
+
+#plt.plot(range(len(x)),x,range(len(vel_x)),[i for i in vel_x],range(len(pitch)),[i*100 for i in pitch])
+#plt.legend(['x','x_vel','pitch'])
+#plt.show()
+
+#z_base = thrust[1]
+#plt.plot(range(len(z)),[i/1000.0 for i in z],range(len(vel_z)),[i/1000.0 for i #in vel_z],range(len(thrust)),[i-z_base for i in thrust])
+#plt.legend(['z','z_vel','thrust'])
+#plt.show()
+
+#plt.plot(range(len(thrust)), thrust)
+#plt.show()
+
+def main():
+    flight_no = 49
+    x = []
+    y = []
+    z = []
+    r = []
+    p = []
+    yaw = []
+    roll = []
+    pitch = []
+    thrust = []
+    
+    for i in range(flight_no):
+        (tempx,tempy,tempz,tempr,tempp,tempyaw,temproll,temppitch,tempthrust) = data_process(i+1)
+        x.append(tempx)
+        y.append(tempy)
+        z.append(tempz)
+        r.append(tempr)
+        p.append(tempp)
+        yaw.append(tempyaw)
+        roll.append(temproll)
+        pitch.append(temppitch)
+        thrust.append(tempthrust)
+
+    #for i in range(6):
+        #plt.plot(x[i],y[i])
+        #plt.plot(range(len(z[i])),z[i])
+    #plt.legend(['root 0.001','root 0.002','root 0.003'])
+    #plt.plot(range(len(z[0])),z[0],range(len(z[1])),z[1],range(len(z[2])),z[2],range(len(z[3])),z[3],range(len(z[4])),z[4])
+    #plt.legend(['01','02','03','04','05'])
+    fig1 = plt.figure(1)
+    ax = Axes3D(fig1)
+    legend = []
+    for i in range(flight_no-1,flight_no):
+        ax.plot(x[i],y[i],z[i])
+        legend.append('{0}'.format(i))
+    plt.legend(legend)
+    #plt.show()
+    
+    #acc_x = [-roll[fly_no][i]*math.sin(yaw[fly_no][i])+pitch[fly_no][i]*math.cos(yaw[fly_no][i]) for i in range(len(roll[fly_no]))]
+    #plt.plot(x[11],roll[11])
+    #plt.plot(x[11],pitch[11])
+    #plt.plot(x[fly_no],acc_x)
+    fig2 = plt.figure(2)
+    legend = []
+    for i in range(flight_no-1,flight_no):
+        plt.plot(range(len(x[i])),x[i],'ro')
+        legend.append('{0}'.format(i))
+    plt.legend(legend)
+
+    fig2 = plt.figure(3)
+    legend = []
+    for i in range(flight_no-1,flight_no):
+        plt.plot(range(len(y[i])),y[i],'ro')
+        legend.append('{0}'.format(i))
+    plt.legend(legend)
+
+    fig2 = plt.figure(4)
+    legend = []
+    for i in range(flight_no-1,flight_no):
+        plt.plot(range(len(z[i])),z[i],'ro')
+        legend.append('{0}'.format(i))
+    plt.legend(legend)
+
+    plt.show()
+
+if __name__=='__main__':
+    main()

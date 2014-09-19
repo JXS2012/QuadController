@@ -1,0 +1,2 @@
+Ver5:
+Use navigation controller as the single control mode.

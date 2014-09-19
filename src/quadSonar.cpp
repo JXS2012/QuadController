@@ -1,0 +1,81 @@
+#include <ros/ros.h>
+#include "SonarBird.h"
+#include<asctec_msgs/IMUCalcData.h>
+
+SonarBird *bird;
+int fileNo;
+
+void timerCallback(const ros::TimerEvent&)
+{
+  bird->drive();  
+}
+
+void asctecCallback(const asctec_msgs::IMUCalcData msg)
+{
+  ROS_INFO("I heard: [%d]", msg.height);
+  
+  std::FILE * pFile;
+  char buff[100];
+  sprintf(buff,"/home/jianxin/asctec%d.txt",fileNo);
+  std::string filename = buff;
+
+  //pFile = fopen("/home/jianxin/log.txt","w");
+  pFile = fopen(filename.c_str(),"a");
+
+  //pFile = fopen("/home/jianxin/asctec.txt","a");
+  if (pFile!=NULL)
+    {
+      fprintf(pFile, "time %f height %d\n", ros::Time::now().toSec(),msg.height);
+    }
+
+  fclose(pFile);
+}
+
+int main(int argc, char** argv)
+{
+  double freq;
+
+  ros::init(argc,argv,"quadrotor");
+  ros::NodeHandle nh;
+  ros::NodeHandle nh_private("~");
+
+  if (!nh_private.getParam("freq",freq))
+    freq = 30.0;
+  ROS_INFO("call back freq %.3f",freq);
+
+
+  ros::Timer timer = nh.createTimer(ros::Duration(1.0/freq),timerCallback);
+  ROS_INFO("create timer");
+  //ros::Subscriber asctec_sub = nh.subscribe<asctec_msgs::IMUCalcData>("/asctec/IMU_CALCDATA",1,asctecCallback);  
+  
+  ROS_INFO("Start from test No?");
+  std::cin >> fileNo;
+  ROS_INFO("Start from test No.%d.", fileNo);
+
+  while (nh.ok() )
+    {
+      char flag;
+      bird = new SonarBird(nh,nh_private);
+      ROS_INFO("create bird");
+      
+      while (!bird->sonarInitiate())
+	ros::spinOnce();
+
+      while (!bird->finish())
+	ros::spinOnce();
+      
+      ROS_INFO("Writing to No.%d", fileNo);
+      bird->writeLog(fileNo);
+      delete bird;
+
+      ROS_INFO("Continue? (y/n)");
+      std::cin >> flag;
+      if (flag == 'n')
+	break;
+
+      fileNo ++;
+    }
+
+
+  return 0;
+}

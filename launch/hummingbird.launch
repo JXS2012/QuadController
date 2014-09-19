@@ -1,0 +1,43 @@
+<launch>
+
+  #### Hummingbird ###################################
+
+  <node pkg="quadrotorTestControl" type="quadSmart" name="Hummingbird" 
+    output = "screen">
+    <param name="vicon" type="string" value="/vicon/Hummingbird/Hummingbird"/>
+
+    <param name="sensor" type="string" value="vicon"/>
+
+    <param name="freq" type="double" value="30.0"/>
+
+    <param name="averageStep" type="double" value="3.0"/>
+
+    <param name="gravity_constant" type="double" value="9.81"/>
+
+    <param name="heli_mass" type="double" value="615.0"/>
+
+    <param name="flight_radius" type="double" value="300.0"/>
+
+    <param name="fly" type="bool" value="false"/>
+
+    <param name="total_time" type="double" value="30.0"/>
+    
+    <param name="flight_height" type="double" value="300.0"/>
+ 
+    <param name="max_outter_radius" type="double" value="1200.0"/>
+
+    <param name="targets" type="string" value="600 0 300 600 600 300 0 600 300 0 0 300"/>
+
+    <param name="quadrotor_type" type="string" value="Hummingbird"/>
+
+    <param name="ROS_thrust_cmd_table" value="0 0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5"/>
+
+    <param name="actual_thrust_table" value="57.8 95.3 138.3 192.3 265.3 350.3 430.3 540.3 665.3 790.3 932.3"/>
+
+  </node>
+
+
+</launch>
+
+
+

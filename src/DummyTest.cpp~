@@ -1,0 +1,45 @@
+#include <ros/ros.h>
+#include "DummyBird.h"
+
+DummyBird *bird;
+int fileNo;
+
+void timerCallback(const ros::TimerEvent&)
+{
+  bird->drive();  
+}
+
+
+int main(int argc, char** argv)
+{
+  double freq;
+
+  ros::init(argc,argv,"quadrotor");
+  ros::NodeHandle nh;
+  ros::NodeHandle nh_private("~");
+
+  if (!nh_private.getParam("freq",freq))
+    freq = 30.0;
+  ROS_INFO("call back freq %.3f",freq);
+
+
+  ros::Timer timer = nh.createTimer(ros::Duration(1.0/freq),timerCallback);
+  ROS_INFO("create timer");
+
+  bird = new DummyBird(nh,nh_private);
+  ROS_INFO("create bird");
+  
+  while (nh.ok() )
+    {
+	bird->on();
+
+	sleep(5);
+
+	bird->off();
+
+	break;
+    }
+
+
+  return 0;
+}
